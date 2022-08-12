@@ -40,11 +40,12 @@ class IndexModel():
         '''Retrives data from .csv file
         '''
         total_price = pd.read_csv(current_dir + "\data_sources\stock_prices.csv", index_col = [0])
+        # test = pd.read_csv(current_dir + "\data_sources\index_level_results_rounded.csv", index_col = [0])
         total_price.index = pd.to_datetime(total_price.index, format="%d/%m/%Y")
         # Making sure the prices are base 100
         total_price = total_price.div(total_price.iloc[0]).mul(100)
         # Replacing NaN with the last price
-        total_price = total_price.fillna(method = "ffill") #bfill, .interpolate()
+        total_price = total_price.fillna(method = "bfill")
         
         self.total_price = total_price
         
@@ -77,7 +78,7 @@ class IndexModel():
         # Retriving the daily dates series
         daily_date_series = self.total_price.index     
         
-        # Retriving the monthly dates series
+        # Retriving the monthly dates series of the first business day in each month
         monthly_date_series = self.total_price.resample("BMS").last().index
         
         # Adding the first and the last day
@@ -98,7 +99,7 @@ class IndexModel():
             self.end = end
         
         # Composing the Cap-Weighted Index
-        # Finding the index of the starting date (or the closest starting date)
+        # Finding the address of the starting date (or the closest starting date)
         start_date_address = monthly_date_series.get_indexer([start], method='nearest')[0]
         end_date_address = monthly_date_series.get_indexer([end], method='nearest')[0]
         rebalancing_dates = monthly_date_series[start_date_address:(end_date_address+1)]
@@ -183,8 +184,8 @@ def index_modeller(rebalancing_dates, total_price, weights):
     The Pandas DataFrame of the Price series of the Index
 
     """
-    num_of_rebalancings = len(rebalancing_dates)
-    total_num_of_stocks = list(range(len(list(total_price))))
+    list_of_stocks = list(total_price.copy())
+    total_num_of_stocks = list(range(len(list_of_stocks)))
     chosen_num_of_stocks = len(weights)
     ranked_assets = total_num_of_stocks[-chosen_num_of_stocks:]
     initial_price = 100
@@ -193,11 +194,13 @@ def index_modeller(rebalancing_dates, total_price, weights):
     drifting_assets = []
     for ii in range(chosen_num_of_stocks):
         drifting_assets.append("Asset"+str(ii+1))
-    drifting_assets.append("Index_Level")
     
     # Parsing the total_price DataFrame over the required period
     total_price = total_price.loc[rebalancing_dates[0]:rebalancing_dates[-1]]
-    total_price[drifting_assets] = 100
+    
+    # Initializing the price series for each asset
+    total_price[drifting_assets] = weights*np.array(initial_price)
+    total_price["Index_Level"] = initial_price
     
     horizon = np.shape(total_price)[0]
     dates = total_price.index
@@ -206,23 +209,27 @@ def index_modeller(rebalancing_dates, total_price, weights):
     rebalancing_counts = 0
     
     for i in range(horizon):      
-        
+
         if dates[i] in rebalancing_dates:
             # For the current rebalancing lets first generate the order in which to apply our weights
             address_ranked_assets = []
-            current_ranks = rankdata(total_price.loc[rebalancing_dates[rebalancing_counts]].values)
+            current_ranks = rankdata(total_price.loc[rebalancing_dates[rebalancing_counts],list_of_stocks].values)
             for j in range(chosen_num_of_stocks):
                 address_ranked_assets.append(np.where(current_ranks == (ranked_assets[j]+1))[0][0])
             # The order in which to apply the weights
-            address_ranked_assets = address_ranked_assets.reverse()
+            address_ranked_assets.reverse()
             rebalancing_counts = rebalancing_counts + 1
             is_it_rebalancing = "y"
         else:
             is_it_rebalancing = "n"
         
-        
-        
-        
-        
-    
-    
+        if i > 0:
+            if is_it_rebalancing == "y":
+                total_price.loc[dates[i],drifting_assets] = total_price.loc[dates[i-1],drifting_assets]*weights
+            elif is_it_rebalancing == "n":
+                for jj in range(chosen_num_of_stocks):
+                    total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address_ranked_assets[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address_ranked_assets[jj]]])
+                total_price.loc[dates[i],"Index_Level"] =sum(total_price.loc[dates[i],drifting_assets])                 
+                    
+            
+            
