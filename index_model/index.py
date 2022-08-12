@@ -107,7 +107,7 @@ class IndexModel():
         # Constructing the Index
         index_price = index_modeller(rebalancing_dates, total_price, weights)
         
-        return index_price
+        return index_price.total_price
 
     def export_values(self, file_name: str) -> None:
         # To be implemented
@@ -199,7 +199,7 @@ def index_modeller(rebalancing_dates, total_price, weights):
     total_price = total_price.loc[rebalancing_dates[0]:rebalancing_dates[-1]]
     
     # Initializing the price series for each asset
-    total_price[drifting_assets] = weights*np.array(initial_price)
+    total_price[drifting_assets] = initial_price*np.array(weights)
     total_price["Index_Level"] = initial_price
     
     horizon = np.shape(total_price)[0]
@@ -224,12 +224,11 @@ def index_modeller(rebalancing_dates, total_price, weights):
             is_it_rebalancing = "n"
         
         if i > 0:
+            for jj in range(chosen_num_of_stocks):
+                total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address_ranked_assets[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address_ranked_assets[jj]]])
+            total_price.loc[dates[i],"Index_Level"] =sum(total_price.loc[dates[i],drifting_assets])                 
             if is_it_rebalancing == "y":
-                total_price.loc[dates[i],drifting_assets] = total_price.loc[dates[i-1],drifting_assets]*weights
-            elif is_it_rebalancing == "n":
-                for jj in range(chosen_num_of_stocks):
-                    total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address_ranked_assets[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address_ranked_assets[jj]]])
-                total_price.loc[dates[i],"Index_Level"] =sum(total_price.loc[dates[i],drifting_assets])                 
-                    
+                total_price.loc[dates[i],drifting_assets] = total_price.loc[dates[i],"Index_Level"]*np.array(weights)
+    return total_price                    
             
             
