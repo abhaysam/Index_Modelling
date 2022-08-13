@@ -4,10 +4,10 @@ plt.style.use("seaborn")
 import numpy as np
 import pandas as pd
 import os
+import logging
 current_dir = os.getcwd()
+pd.options.mode.chained_assignment = None
 
-# import warnings
-# warnings.filterwarnings("ignore") 
 
 #%% Class for contructing the Index and generating all the stats for a stock
 class IndexModel():
@@ -96,12 +96,14 @@ class IndexModel():
             raise ValueError("More weights provided than assets in the investable universe")
         if sum(weights) != 1:
             raise ValueError("Weights do not add to 100%")
+
         if start < weights_allocation_date[0]:
-            raise Exception("Start-date preceeds the starting date of the data available. Start-date reset to the {}".format(monthly_date_series[1]))
+            logging.warning("Start-date preceeds the starting date of the data available. Start-date reset to the {}".format(monthly_date_series[1]))
             start = monthly_date_series[1]
             self.start = start
+
         if end > monthly_date_series[-1]:
-            raise Exception("End-date exceeds the data available. End-date reset to the {}".format(monthly_date_series[-1]))
+            logging.warning("End-date exceeds the data available. End-date reset to the {}".format(monthly_date_series[-1]))
             end = monthly_date_series[-1] 
             self.end = end
         
@@ -233,7 +235,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
             current_rebalancing_date = rebalancing_dates[rebalancing_counts]
             # Weights are based on previous day prices (so it has to be the last working day of previous month)
             # We can retrive it from "weights_allocation_date" by using "nearest"
-            current_allocation_date = weights_allocation_date[weights_allocation_date.get_loc(current_rebalancing_date, method='nearest')]
+            current_allocation_date = weights_allocation_date[weights_allocation_date.get_indexer([current_rebalancing_date], method='nearest')[0]]
             current_ranks = rankdata(total_price_for_allocation.loc[current_allocation_date,list_of_stocks].values)
             for j in range(chosen_num_of_stocks):
                 address_ranked_assets.append(np.where(current_ranks == (ranked_assets[j]+1))[0][0])
@@ -258,7 +260,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
                 total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address[jj]]])
             total_price.loc[dates[i],"Index_Level"] = sum(total_price.loc[dates[i],drifting_assets])                 
             if is_it_rebalancing == "y":
-                total_price.loc[dates[i],drifting_assets] = total_price_for_allocation.loc[dates[i],"Index_Level"]*np.array(weights)
+                total_price.loc[dates[i],drifting_assets] = total_price.loc[dates[i],"Index_Level"]*np.array(weights)
     return total_price                    
             
             
