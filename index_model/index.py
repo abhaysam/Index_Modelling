@@ -6,6 +6,8 @@ import pandas as pd
 import os
 current_dir = os.getcwd()
 
+# import warnings
+# warnings.filterwarnings("ignore") 
 
 #%% Class for contructing the Index and generating all the stats for a stock
 class IndexModel():
@@ -111,9 +113,9 @@ class IndexModel():
         
         # Constructing the Index
         index_price = index_modeller(rebalancing_dates, weights_allocation_date, total_price, weights)
-        self.index_price = index_price.Index_Level.to_frame()
-        
-        return index_price.Index_Level
+        self.index_price = index_price
+
+        return index_price
 
     def log_returns(self):
         '''Computes log returns
@@ -220,6 +222,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
     
     # Initializing the rebalancings
     rebalancing_counts = 0
+    all_address_ranked_assets = []
     
     for i in range(horizon):      
 
@@ -228,28 +231,34 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
             address_ranked_assets = []
             # Lets retrive the current rebalancing date
             current_rebalancing_date = rebalancing_dates[rebalancing_counts]
-            print(current_rebalancing_date)
             # Weights are based on previous day prices (so it has to be the last working day of previous month)
             # We can retrive it from "weights_allocation_date" by using "nearest"
             current_allocation_date = weights_allocation_date[weights_allocation_date.get_loc(current_rebalancing_date, method='nearest')]
-            print(current_allocation_date)
             current_ranks = rankdata(total_price_for_allocation.loc[current_allocation_date,list_of_stocks].values)
-            print(current_ranks)
             for j in range(chosen_num_of_stocks):
                 address_ranked_assets.append(np.where(current_ranks == (ranked_assets[j]+1))[0][0])
             # The order in which to apply the weights
             address_ranked_assets.reverse()
+            all_address_ranked_assets.append(address_ranked_assets)
             rebalancing_counts = rebalancing_counts + 1
             is_it_rebalancing = "y"
         else:
             is_it_rebalancing = "n"
-        
         if i > 0:
-            for jj in range(chosen_num_of_stocks):
-                total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address_ranked_assets[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address_ranked_assets[jj]]])
-            total_price.loc[dates[i],"Index_Level"] =sum(total_price.loc[dates[i],drifting_assets])                 
+            # On the day of rebalancing, we drift the assets with previous choosen assets and reset the weights to the original weights
             if is_it_rebalancing == "y":
-                total_price.loc[dates[i],drifting_assets] = total_price.loc[dates[i],"Index_Level"]*np.array(weights)
+                address = all_address_ranked_assets[rebalancing_counts-2]
+            # If it isnt the rebalancing day, than we start drifting the weights with the newly choosen assets
+            elif is_it_rebalancing == "n":
+                address = address_ranked_assets
+            for jj in range(chosen_num_of_stocks):
+                # We simply drift each of our dummy asset based on the choosen assets
+                # In the following step we are going to choose the new asset (based on address) and drift the dummy Assets with the chosen asset.
+                # Since we are appending the DataFrame with the values (slice) of the DataFrame, this will raise warnings. The alternative would be to convert the DataFrame to numpy and than back to DataFrame.
+                total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address[jj]]])
+            total_price.loc[dates[i],"Index_Level"] = sum(total_price.loc[dates[i],drifting_assets])                 
+            if is_it_rebalancing == "y":
+                total_price.loc[dates[i],drifting_assets] = total_price_for_allocation.loc[dates[i],"Index_Level"]*np.array(weights)
     return total_price                    
             
             

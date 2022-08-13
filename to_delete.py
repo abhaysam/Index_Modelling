@@ -9,5 +9,6 @@ start = pd.Timestamp(backtest_start)
 end = pd.Timestamp(backtest_end)
 weights = [0.5, 0.25, 0.25]
 index = IndexModel(backtest_start,backtest_end)
+price = index.index_price.Index_Level
 index.plot_returns("hist")
 index.plot_prices()
