@@ -208,6 +208,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
         drifting_assets.append("Asset"+str(ii+1))
     
     # Parsing the total_price DataFrame over the required period
+    total_price_for_allocation = total_price.copy()
     total_price = total_price.loc[rebalancing_dates[0]:rebalancing_dates[-1]]
     
     # Initializing the price series for each asset
@@ -225,7 +226,15 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
         if dates[i] in rebalancing_dates:
             # For the current rebalancing lets first generate the order in which to apply our weights
             address_ranked_assets = []
-            current_ranks = rankdata(total_price.loc[rebalancing_dates[rebalancing_counts],list_of_stocks].values)
+            # Lets retrive the current rebalancing date
+            current_rebalancing_date = rebalancing_dates[rebalancing_counts]
+            print(current_rebalancing_date)
+            # Weights are based on previous day prices (so it has to be the last working day of previous month)
+            # We can retrive it from "weights_allocation_date" by using "nearest"
+            current_allocation_date = weights_allocation_date[weights_allocation_date.get_loc(current_rebalancing_date, method='nearest')]
+            print(current_allocation_date)
+            current_ranks = rankdata(total_price_for_allocation.loc[current_allocation_date,list_of_stocks].values)
+            print(current_ranks)
             for j in range(chosen_num_of_stocks):
                 address_ranked_assets.append(np.where(current_ranks == (ranked_assets[j]+1))[0][0])
             # The order in which to apply the weights
