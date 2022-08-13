@@ -32,6 +32,8 @@ class IndexModel():
         self.end = pd.Timestamp(end)
         self.weights = weights
         self.get_data()
+        self.calc_index_level()
+        self.log_returns()
      
     def __repr__(self): #repr stands for representation. Add comments that the user should know whenyou run this class
         return "IndexModel(start = {}, end = {})".format( self.start, self.end)   
@@ -80,16 +82,19 @@ class IndexModel():
         
         # Retriving the monthly dates series of the first business day in each month
         monthly_date_series = self.total_price.resample("BMS").last().index
+        # We also need the last business day of each month as the assets are choosen based on the prices of EOM 
+        weights_allocation_date = self.total_price.resample("BM").last().index
         
         # Adding the first and the last day
         monthly_date_series = daily_date_series[0:1].union(monthly_date_series).union(daily_date_series[-1:])
+        
         
         # Raising all the necessary exceptions
         if len(weights) > len(list(total_price)):
             raise ValueError("More weights provided than assets in the investable universe")
         if sum(weights) != 1:
             raise ValueError("Weights do not add to 100%")
-        if start < monthly_date_series[0]:
+        if start < weights_allocation_date[0]:
             raise Exception("Start-date preceeds the starting date of the data available. Start-date reset to the {}".format(monthly_date_series[1]))
             start = monthly_date_series[1]
             self.start = start
@@ -105,28 +110,35 @@ class IndexModel():
         rebalancing_dates = monthly_date_series[start_date_address:(end_date_address+1)]
         
         # Constructing the Index
-        index_price = index_modeller(rebalancing_dates, total_price, weights)
+        index_price = index_modeller(rebalancing_dates, weights_allocation_date, total_price, weights)
+        self.index_price = index_price.Index_Level.to_frame()
         
-        return index_price.total_price
+        return index_price.Index_Level
 
-    def export_values(self, file_name: str) -> None:
-        # To be implemented
-        pass
+    def log_returns(self):
+        '''Computes log returns
+        '''
+        self.index_price["log_returns"] = np.log(self.index_price.Index_Level/self.index_price.Index_Level.shift(1))
+        
+    def export_values(self, file_name: str):
+        self.index_price.Index_Level.to_csv(file_name)
                
     def plot_prices(self):
-        self.total_price.price.plot(figsize=(12,8))
-        plt.title("Price Chart: {}".format(self._ticker), fontsize = 15)
+        self.index_price.Index_Level.plot(figsize=(12,8))
+        plt.title("Price Chart of the Index", fontsize = 15)
+        plt.figure()
         
     def plot_returns(self, kind = "ts"):
         ''' Plots log returns either as time series ("ts") or as histogram ("hist")
         '''
         if kind == "ts":            
-            self.total_price.log_returns.plot(figsize=(12,8))
-            plt.title("Returns:{}".format(self._ticker), fontsize = 15)
+            self.index_price.log_returns.plot(figsize=(12,8))
+            plt.title("Returns", fontsize = 15)
         elif kind == "hist":
-            self.total_price.log_returns.hist(figsize=(12,8), bins = int(np.sqrt(len(self.total_price))))
-            plt.title("Frequency of Returns:{}".format(self._ticker), fontsize = 15)            
-           
+            self.index_price.log_returns.hist(figsize=(12,8), bins = int(np.sqrt(len(self.index_price))))
+            plt.title("Frequency of Returns", fontsize = 15)            
+        plt.figure()
+        
 class RiskReturn(IndexModel):
 
     # When we pass __init__(self, ticker, start, end), the child class RiskReturn overrides the parent class and since 
@@ -136,33 +148,33 @@ class RiskReturn(IndexModel):
         self.freq = freq
         super().__init__(start, end) 
     def __repr__(self): #repr stands for representation. Add comments that the user should know whenyou run this class
-        return "RiskReturn(ticker = {}, start = {}, end = {})".format(self._ticker, self.start, self.end)   
+        return "RiskReturn( start = {}, end = {})".format(self.start, self.end)   
     def mean_return(self):
         ''' Calculates mean return
         '''
         if self.freq is None:
-            return self.total_price.log_returns.mean()
+            return self.index_price.log_returns.mean()
         else:
-            resampled_price = self.total_price.price.resample(self.freq).last()
+            resampled_price = self.index_price.Index_Level.resample(self.freq).last()
             resampled_returns = np.log(resampled_price / resampled_price.shift(1))
             return resampled_returns.mean()   
     def std_returns(self):
         ''' Calculates the standard deviation of returns (risk)
         '''
         if self.freq is None:
-            return self.total_price.log_returns.std()
+            return self.index_price.log_returns.std()
         else:
-            resampled_price = self.total_price.price.resample(self.freq).last()
+            resampled_price = self.index_price.Index_Level.resample(self.freq).last()
             resampled_returns = np.log(resampled_price / resampled_price.shift(1))
             return resampled_returns.std()        
     def annualized_perf(self):
         ''' Calculates annulized return and risk
         '''
-        mean_return = round(self.total_price.log_returns.mean() * 252, 3)
-        risk = round(self.total_price.log_returns.std() * np.sqrt(252), 3)
+        mean_return = round(self.index_price.log_returns.mean() * 252, 3)
+        risk = round(self.index_price.log_returns.std() * np.sqrt(252), 3)
         print("Return: {} | Risk: {}".format(mean_return, risk))
 
-def index_modeller(rebalancing_dates, total_price, weights):
+def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weights):
     """
     Assumptions:
     -----------
