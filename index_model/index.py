@@ -14,7 +14,7 @@ class IndexModel():
     """
     Class to construct and analyse the Index
     
-    Attributes
+    Attributes:
     ----------
 
     start: str
@@ -22,7 +22,7 @@ class IndexModel():
     end: str
         end date of the data 
         
-    Index Computation
+    Index Computation:
     -----------------
     
     weights: list
@@ -41,7 +41,7 @@ class IndexModel():
         return "IndexModel(start = {}, end = {})".format( self.start, self.end)   
     
     def get_data(self):
-        '''Retrives data from .csv file
+        ''' Retrives data from .csv file
         '''
         total_price = pd.read_csv(current_dir + "\data_sources\stock_prices.csv", index_col = [0])
         # test = pd.read_csv(current_dir + "\data_sources\index_level_results_rounded.csv", index_col = [0])
@@ -61,14 +61,14 @@ class IndexModel():
             Weights are assigned in the Descending order of the Market Cap
             Weights are provided by the user
             
-        Raises
+        Raises:
         ------
         ValueError
             Checks on acceptable number of assets, sum of weights .
         Exception
             Checks on start-date and end-date.
 
-        Returns
+        Returns:
         -------
         index_price : Pandas DataFrame
             The Pandas DataFrame of the Price series of the Index
@@ -120,7 +120,7 @@ class IndexModel():
         return index_price
 
     def log_returns(self):
-        '''Computes log returns
+        ''' Computes log returns
         '''
         self.index_price["log_returns"] = np.log(self.index_price.Index_Level/self.index_price.Index_Level.shift(1))
         
@@ -130,7 +130,6 @@ class IndexModel():
     def plot_prices(self):
         self.index_price.Index_Level.plot(figsize=(12,8))
         plt.title("Price Chart of the Index", fontsize = 15)
-        plt.figure()
         
     def plot_returns(self, kind = "ts"):
         ''' Plots log returns either as time series ("ts") or as histogram ("hist")
@@ -141,13 +140,32 @@ class IndexModel():
         elif kind == "hist":
             self.index_price.log_returns.hist(figsize=(12,8), bins = int(np.sqrt(len(self.index_price))))
             plt.title("Frequency of Returns", fontsize = 15)            
-        plt.figure()
         
 class RiskReturn(IndexModel):
 
     # When we pass __init__(self, ticker, start, end), the child class RiskReturn overrides the parent class and since 
     # RiskReturn does not download data from yf, this will result in error, hence we need the super function
-       
+    """
+    Class to compute the performance of the Index Price series
+    
+    Attributes:
+    ----------
+
+    start: str
+        start date of the data
+    end: str
+        end date of the data 
+        
+    Performance:
+    -----------
+    
+    mean_returns : user can define the frequency
+    
+    std_returns : user can define the frequency
+    
+    annualized_perf : returns annualized return and volatility
+    
+    """
     def __init__(self, start, end, freq = None):
         self.freq = freq
         super().__init__(start, end) 
@@ -186,7 +204,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
         Weights are assigned in the Descending order of the Market Cap
         Weights are provided by the user
 
-    Parameters
+    Parameters:
     ----------
     rebalancing_dates : list
         The days on which we are going to perform the rebalancing
@@ -195,7 +213,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
     weights : list
         Weights allocated to the assets in the Index
 
-    Returns
+    Returns:
     -------
     The Pandas DataFrame of the Price series of the Index
 
