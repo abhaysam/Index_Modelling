@@ -92,10 +92,14 @@ class IndexModel():
         
         
         # Raising all the necessary exceptions
+        if start > end:
+            raise Exception("The end date cannot be before start date")
         if len(weights) > len(list(total_price)):
             raise ValueError("More weights provided than assets in the investable universe")
         if sum(weights) != 1:
             raise ValueError("Weights do not add to 100%")
+        if len(weights) == 0:
+            raise ValueError("Weights cannot be empty")
 
         if start < weights_allocation_date[0]:
             logging.warning("Start-date preceeds the starting date of the data available. Start-date reset to the {}".format(monthly_date_series[1]))
