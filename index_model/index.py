@@ -124,8 +124,8 @@ class IndexModel():
         return index_price
 
     def log_returns(self):
-        ''' Computes log returns
-        '''
+        """ Computes log returns
+        """
         self.index_price["log_returns"] = np.log(self.index_price.Index_Level/self.index_price.Index_Level.shift(1))
         
     def export_values(self, file_name: str):
@@ -136,8 +136,8 @@ class IndexModel():
         plt.title("Price Chart of the Index", fontsize = 15)
         
     def plot_returns(self, kind = "ts"):
-        ''' Plots log returns either as time series ("ts") or as histogram ("hist")
-        '''
+        """ Plots log returns either as time series ("ts") or as histogram ("hist")
+        """
         if kind == "ts":            
             self.index_price.log_returns.plot(figsize=(12,8))
             plt.title("Returns", fontsize = 15)
@@ -176,8 +176,8 @@ class RiskReturn(IndexModel):
     def __repr__(self): #repr stands for representation. Add comments that the user should know whenyou run this class
         return "RiskReturn( start = {}, end = {})".format(self.start, self.end)   
     def mean_return(self):
-        ''' Calculates mean return
-        '''
+        """ Calculates mean return
+        """
         if self.freq is None:
             return self.index_price.log_returns.mean()
         else:
@@ -185,8 +185,8 @@ class RiskReturn(IndexModel):
             resampled_returns = np.log(resampled_price / resampled_price.shift(1))
             return resampled_returns.mean()   
     def std_returns(self):
-        ''' Calculates the standard deviation of returns (risk)
-        '''
+        """ Calculates the standard deviation of returns (risk)
+        """
         if self.freq is None:
             return self.index_price.log_returns.std()
         else:
@@ -194,8 +194,8 @@ class RiskReturn(IndexModel):
             resampled_returns = np.log(resampled_price / resampled_price.shift(1))
             return resampled_returns.std()        
     def annualized_perf(self):
-        ''' Calculates annulized return and risk
-        '''
+        """ Calculates annulized return and risk
+        """
         mean_return = round(self.index_price.log_returns.mean() * 252, 3)
         risk = round(self.index_price.log_returns.std() * np.sqrt(252), 3)
         print("Return: {} | Risk: {}".format(mean_return, risk))
@@ -236,7 +236,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
     # Parsing the total_price DataFrame over the required period
     total_price_for_allocation = total_price.copy()
     total_price = total_price.loc[rebalancing_dates[0]:rebalancing_dates[-1]]
-    
+    ret = total_price.copy().pct_change()
     # Initializing the price series for each asset
     total_price[drifting_assets] = initial_price*np.array(weights)
     total_price["Index_Level"] = initial_price
@@ -278,8 +278,7 @@ def index_modeller(rebalancing_dates, weights_allocation_date, total_price, weig
             for jj in range(chosen_num_of_stocks):
                 # We simply drift each of our dummy asset based on the choosen assets
                 # In the following step we are going to choose the new asset (based on address) and drift the dummy Assets with the chosen asset.
-                # Since we are appending the DataFrame with the values (slice) of the DataFrame, this will raise warnings. The alternative would be to convert the DataFrame to numpy and than back to DataFrame.
-                total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (total_price.loc[dates[i],list_of_stocks[address[jj]]]/total_price.loc[dates[i-1],list_of_stocks[address[jj]]])
+                total_price.loc[dates[i],drifting_assets[jj]] = total_price.loc[dates[i-1],drifting_assets[jj]] * (ret.loc[dates[i],list_of_stocks[address[jj]]]+1)
             total_price.loc[dates[i],"Index_Level"] = sum(total_price.loc[dates[i],drifting_assets])                 
             if is_it_rebalancing == "y":
                 total_price.loc[dates[i],drifting_assets] = total_price.loc[dates[i],"Index_Level"]*np.array(weights)
