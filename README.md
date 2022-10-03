@@ -39,18 +39,4 @@ calculates.
 - The index business days are Monday to Friday.
 - There are no additional holidays.
 
-# Setup
-We've already provided a `__main__.py` for this project and there should be no need for you to modify it. 
-As you will see the main file expects an index model which can be found at `index_model/index.py`. 
-This is the model we expect you to build. It should then ultimately be able to export the 
-calculated values to a csv file. 
 
-If you want to use additional packages feel free to do so. The actual business logic must be part of 
-your repo, but we actively encourage you to use packages that you're already familiar 
-with. Please make sure to update the requirements.txt file accordingly.
-
-# Submission
-We are happy to see your project. If not already agreed otherwise, please send us your project 
-as a link to your GitHub repo via mail to jobs@solactive.com. 
-
-Please make sure that you clone the project instead of forking it.
